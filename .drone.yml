@@ -1,0 +1,40 @@
+workspace:
+  base: /go
+  path: src/github.com/magicalbanana/sendwithus
+
+matrix:
+  TAG:
+    - 1.9-alpine
+    - 1.9.7-alpine
+    - 1.10-alpine
+    - 1.11-stretch
+
+pipeline:
+  notify_start:
+    image: plugins/slack
+    channel: ci
+    username: drone
+    template: "<{{ build.link }}|Build #{{ build.number }} started> on <http://github.com/{{ repo.owner }}/{{ repo.name }}/tree/{{ build.branch }}|{{ repo.name }}:{{ build.branch }}> by @{{ build.author }}"
+    secrets: [slack_webhook]
+
+  build:
+    group: build_test
+    image: golang:${TAG}
+    commands:
+      - go build ./...
+
+  test:
+    group: build_test
+    image: golang:${TAG}
+    secrets: [sendwithus_api_key, SENDWITHUS_TEST_TEMPLATE, sendwithus_test_recipient, sendwithus_test_sender]
+    commands:
+      - go test ./...
+
+  notify_finish:
+    image: plugins/slack
+    channel: ci
+    username: drone
+    template: "<{{ build.link }}|Build #{{ build.number }} {{ build.status }}> on <http://github.com/{{ repo.owner }}/{{ repo.name }}/tree/{{ build.branch }}|{{ repo.name }}:{{ build.branch }}> by @{{ build.author }}"
+    secrets: [slack_webhook]
+    when:
+      status: [ success, failure ]
