@@ -9,17 +9,17 @@ import (
 
 // Email ...
 type Email struct {
-	Template    string           `json:"template,omitempty"`
-	Recipient   *Recipient       `json:"recipient,omitempty"`
-	CC          []Recipient      `json:"cc,omitempty"`
-	BCC         []Recipient      `json:"bcc,omitempty"`
-	Sender      *Sender          `json:"sender,omitempty"`
-	TemlateData *json.RawMessage `json:"template_data,omitempty"`
-	Tags        []string         `json:"tags,omitempty"`
-	Inline      *Attachment      `json:"inline,omitempty"`
-	Files       []Attachment     `json:"files,omitempty"`
-	ESPAccount  string           `json:"esp_account,omitempty"`
-	VersionName string           `json:"version_name,omitempty"`
+	Template     string           `json:"template,omitempty"`
+	Recipient    *Recipient       `json:"recipient,omitempty"`
+	CC           []Recipient      `json:"cc,omitempty"`
+	BCC          []Recipient      `json:"bcc,omitempty"`
+	Sender       *Sender          `json:"sender,omitempty"`
+	TemplateData *json.RawMessage `json:"template_data,omitempty"`
+	Tags         []string         `json:"tags,omitempty"`
+	Inline       *Attachment      `json:"inline,omitempty"`
+	Files        []Attachment     `json:"files,omitempty"`
+	ESPAccount   string           `json:"esp_account,omitempty"`
+	VersionName  string           `json:"version_name,omitempty"`
 }
 
 // SendResponse ...
