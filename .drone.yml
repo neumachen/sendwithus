@@ -1,40 +1,106 @@
-workspace:
-  base: /go
-  path: src/github.com/magicalbanana/sendwithus
+---
+kind: secret
+name: slack-webhook
 
-matrix:
-  TAG:
-    - 1.9-alpine
-    - 1.9.7-alpine
-    - 1.10-alpine
-    - 1.11-stretch
+get:
+  path: drone-kubernetes-secrets-data
+  name: slack-webhook
+---
+kind: secret
+name: sendwithus-test-api-key
 
-pipeline:
-  notify_start:
+get:
+  path: drone-kubernetes-secrets-data
+  name: sendwithus-test-api-key
+---
+kind: secret
+name: sendwithus-test-sender
+
+get:
+  path: drone-kubernetes-secrets-data
+  name: sendwithus-test-sender
+---
+kind: secret
+name: sendwithus-test-receipient
+
+get:
+  path: drone-kubernetes-secrets-data
+  name: sendwithus-test-receipient
+---
+kind: secret
+name: sendwithus-test-template
+
+get:
+  path: drone-kubernetes-secrets-data
+  name: sendwithus-test-template
+---
+kind: pipeline
+name: build-test
+
+clone:
+  depth: 50
+
+volumes:
+  - name: deps
+    temp: {}
+
+steps:
+  - name: slack-notification-start-build-images
     image: plugins/slack
-    channel: ci
-    username: drone
-    template: "<{{ build.link }}|Build #{{ build.number }} started> on <http://github.com/{{ repo.owner }}/{{ repo.name }}/tree/{{ build.branch }}|{{ repo.name }}:{{ build.branch }}> by @{{ build.author }}"
-    secrets: [slack_webhook]
+    settings:
+      webhook:
+        from_secret: slack-webhook
+      channel: ci
+      username: drone
+      template: >
+        <{{ build.link }}|Container build(s) #{{ build.number }} started>
+        <http://github.com/{{ repo.owner }}/{{ repo.name }}/tree/{{ build.branch }}|
+        on {{ repo.name }}:{{ build.branch }}> by {{ build.author }}
 
-  build:
-    group: build_test
-    image: golang:${TAG}
+  - name: build-modules
+    image: golang:1.13.6-alpine3.11
+    volumes:
+      - name: deps
+        path: /go
     commands:
-      - go build ./...
+      - apk add --update --no-cache git
+      - go build -v ./...
+      - go mod vendor
 
-  test:
-    group: build_test
-    image: golang:${TAG}
-    secrets: [sendwithus_api_key, SENDWITHUS_TEST_TEMPLATE, sendwithus_test_recipient, sendwithus_test_sender]
+  - name: test
+    image: golang:1.13.6-alpine3.11
+    volumes:
+      - name: deps
+        path: /go
+    environment:
+      SENDWITHUS_TEST_API_KEY:
+        from_secret: sendwithus-test-api-key
+      SENDWITHUS_TEST_SENDER:
+        from_secret: sendwithus-test-sender
+      SENDWITHUS_TEST_RECEIPIENT:
+        from_secret: sendwithus-test-receipient
+      SENDWITHUS_TEST_TEMPLATE:
+        from_secret: sendwithus-test-template
+    depends_on:
+      - build-modules
     commands:
-      - go test ./...
+      - apk add --no-cache alpine-sdk bash
+      - go test -v ./...
 
-  notify_finish:
+  - name: slack-notification-finish-test
     image: plugins/slack
-    channel: ci
-    username: drone
-    template: "<{{ build.link }}|Build #{{ build.number }} {{ build.status }}> on <http://github.com/{{ repo.owner }}/{{ repo.name }}/tree/{{ build.branch }}|{{ repo.name }}:{{ build.branch }}> by @{{ build.author }}"
-    secrets: [slack_webhook]
+    settings:
+      webhook:
+        from_secret: slack-webhook
+      channel: ci
+      username: drone
+      template: >
+        <{{ build.link }}|Build #{{ build.number }} {{ build.status }}>
+        on <http://github.com/{{ repo.owner }}/{{ repo.name }}/tree/{{ build.branch }}|
+        {{ repo.name }}:{{ build.branch }}> by @{{ build.author }}
+    depends_on:
+      - test
     when:
-      status: [ success, failure ]
+      status:
+        - success
+        - failure
