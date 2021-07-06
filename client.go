@@ -3,6 +3,7 @@ package sendwithus
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,10 +12,45 @@ import (
 )
 
 const (
-	libraryVersion = "0.1.0"
-	defaultBaseURL = "https://api.sendwithus.com"
-	userAgent      = "go-sendwithus/" + libraryVersion
+	libraryVersion    = "0.1.0"
+	defaultBaseURLStr = "https://api.sendwithus.com"
+	defUserAgent      = "go-sendwithus/" + libraryVersion
 )
+
+type ClientFuncSetter func(c *Client) error
+
+func defaultHTTPClient(token string) ClientFuncSetter {
+	return func(c *Client) error {
+		if c.client != nil {
+			return nil
+		}
+
+		tp := &TokenAuthTransport{
+			Token: token,
+		}
+
+		c.client = tp.Client()
+		return nil
+	}
+}
+
+func defaultBaseURL(c *Client) error {
+	if c.BaseURL == nil {
+		u, err := url.ParseRequestURI(defaultBaseURLStr)
+		if err != nil {
+			return err
+		}
+		c.BaseURL = u
+	}
+	return nil
+}
+
+func defaultUserAgent(c *Client) error {
+	if c.UserAgent == "" {
+		c.UserAgent = defUserAgent
+	}
+	return nil
+}
 
 type service struct {
 	client *Client
@@ -35,22 +71,27 @@ type Client struct {
 
 // NewClient returns a new SendWithUs API client with Authentication header.
 // If a nil httpClient is provided, http.Client with TokenAuthTransport will be used.
-func NewClient(token string, endpoint *url.URL) *Client {
-	tp := &TokenAuthTransport{Token: token}
-	c := &Client{
-		client:    tp.Client(),
-		UserAgent: userAgent,
+func NewClient(token string, setterFuncs ...ClientFuncSetter) (*Client, error) {
+	if StringIsEmpty(token) {
+		return nil, errors.New("token can not empty")
+	}
+	c := &Client{}
+
+	defSetters := []ClientFuncSetter{
+		defaultBaseURL,
+		defaultHTTPClient(token),
+		defaultUserAgent,
 	}
 
-	if endpoint != nil {
-		c.BaseURL = endpoint
-	} else {
-		c.BaseURL, _ = url.ParseRequestURI(defaultBaseURL)
+	for i := range defSetters {
+		if err := defSetters[i](c); err != nil {
+			return nil, err
+		}
 	}
 
 	c.common.client = c
 
-	return c
+	return c, nil
 }
 
 // Marshaler ...

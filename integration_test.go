@@ -6,31 +6,32 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSend(t *testing.T) {
-	client := NewClient(os.Getenv("SENDWITHUS_TEST_API_KEY"), nil)
+	client, err := NewClient(os.Getenv("SENDWITHUS_TEST_API_KEY"), nil)
+	require.NoError(t, err)
 
-	email := Email{}
-	email.Template = os.Getenv("SENDWITHUS_TEST_TEMPLATE")
-	email.Recipient = &Recipient{
+	sendPayload := SendPayload{}
+	sendPayload.Template = os.Getenv("SENDWITHUS_TEST_TEMPLATE")
+	sendPayload.Recipient = &Recipient{
 		Name:    "Test Recipient",
 		Address: os.Getenv("SENDWITHUS_TEST_SENDER"),
 	}
-	email.CC = []Recipient{
-		Recipient{
+	sendPayload.CC = Recipients{
+		{
 			Name:    "Test CC",
 			Address: "kareem@joinpara.com",
 		},
 	}
-	email.BCC = []Recipient{
-		Recipient{
+	sendPayload.BCC = Recipients{
+		{
 			Name:    "Test BCC",
 			Address: os.Getenv("SENDWITHUS_TEST_RECEIPIENT"),
 		},
 	}
-	email.Sender = &Sender{
+	sendPayload.Sender = &Sender{
 		Recipient: Recipient{
 			Name:    "Test Sender",
 			Address: os.Getenv("SENDWITHUS_TEST_RECEIPIENT"),
@@ -42,10 +43,10 @@ func TestSend(t *testing.T) {
 	}
 
 	b, err := json.Marshal(td)
-	assert.NoError(t, err)
-	assert.NotNil(t, b)
+	require.NoError(t, err)
+	require.NotNil(t, b)
 
-	resp, err := client.Send(context.Background(), &email)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
+	resp, err := client.Send(context.Background(), &sendPayload)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
